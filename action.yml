@@ -1,0 +1,87 @@
+---
+name: "Deploys a Helm Chart"
+description: |
+  This action deploys a Helm chart to a registry.
+author: martoc
+inputs:
+  registry:
+    description: 'Registry to push the container to (default: docker.io) valid values: gcp'
+    required: false
+    default: 'docker.io'
+  region:
+    description: 'Region to push the container to valid values: google cloud or aws regions'
+    required: false
+    default: ''
+  repository_name:
+    description: 'Repository Name'
+    required: false
+    default: ''
+  aws_account_id:
+    description: 'AWS Account ID'
+    required: false
+    default: ''
+  gcp_project_id:
+    description: 'Google Cloud Project ID'
+    required: false
+    default: ''
+runs:
+  using: "composite"
+  steps:
+    - name: 'Set up Cloud SDK'
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: 499.0.0
+      if: ${{ inputs.registry == 'gcp' }}
+    - name: Setup mustache template
+      uses: martoc/action-setup-mo@v0
+    - name: Setup Helm
+      shell: bash
+      run: |
+        cat Chart.yaml | mo > Chart.yaml.tmp
+        mv Chart.yaml.tmp Chart.yaml
+        cat Chart.yaml
+    - name: Packge Helm chart
+      shell: bash
+      run: |
+        helm package .
+    - name: Publish Helm chart
+      shell: bash
+      run: |
+        NAME=$(cat Chart.yaml | yq .name)
+
+        if [ -n "${{ inputs.registry }}" ]; then
+          REGISTRY="${{ inputs.registry }}"
+        fi
+
+        if [ -n "${{ inputs.region }}" ]; then
+          REGION="${{ inputs.region }}"
+        fi
+
+        if [ -n "${{ inputs.repository_name }}" ]; then
+          REPOSITORY_NAME="${{ inputs.repository_name }}"
+        fi
+
+        if [ -n "${{ inputs.gcp_project_id }}" ]; then
+          GCP_PROJECT_ID="${{ inputs.gcp_project_id }}"
+        fi
+
+        if [ "${REGISTRY}" = "gcp" ]; then
+          if [ -z "${REGION}" ]; then
+            echo "REGION must be set when using 'gcp' registry"
+            exit 1
+          fi
+          if [ -z "${GCP_PROJECT_ID}" ]; then
+            echo "GCP_PROJECT_ID must be set when using 'gcp' registry"
+            exit 1
+          fi
+          if  [ -z "${REPOSITORY_NAME}" ]; then
+            echo "REPOSITORY_NAME must be set when using 'gcp' registry"
+            exit 1
+          fi
+          gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${REGION}-docker.pkg.dev
+          REGISTRY_URL="oci://${REGION}-docker.pkg.dev"
+        else
+          echo "Only GCP registry is supported"
+          exit 1
+        fi
+        helm push ${NAME}-${TAG_VERSION}.tgz ${REGISTRY_URL}/${GCP_PROJECT_ID}/${REPOSITORY_NAME}/${NAME}
