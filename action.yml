@@ -84,4 +84,4 @@ runs:
           echo "Only GCP registry is supported"
           exit 1
         fi
-        helm push ${NAME}-${TAG_VERSION}.tgz ${REGISTRY_URL}/${GCP_PROJECT_ID}/${REPOSITORY_NAME}/${NAME}
+        helm push ${NAME}-${TAG_VERSION}.tgz ${REGISTRY_URL}/${GCP_PROJECT_ID}/${REPOSITORY_NAME}
