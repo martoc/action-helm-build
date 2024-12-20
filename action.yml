@@ -32,14 +32,10 @@ runs:
       with:
         version: 499.0.0
       if: ${{ inputs.registry == 'gcp' }}
-    - name: Setup mustache template
-      uses: martoc/action-setup-mo@v0
-    - name: Setup Helm
+    - name: Setup Helm Chart
       shell: bash
       run: |
-        cat Chart.yaml | mo > Chart.yaml.tmp
-        mv Chart.yaml.tmp Chart.yaml
-        cat Chart.yaml
+        yq e ".version = \"$TAG_VERSION\"" -i Chart.yaml
     - name: Packge Helm chart
       shell: bash
       run: |
