@@ -1,7 +1,10 @@
-[![checks](https://github.com/martoc/action-helm-build/actions/workflows/checks.yml/badge.svg?branch=main&event=push)](https://github.com/martoc/action-helm-build/actions/workflows/checks.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![slack](https://img.shields.io/badge/slack-general-brightgreen.svg?logo=slack)](https://app.slack.com/messages/T8L8AAD3M/C8LBHLSVA)
 
 # action-helm-build
 
-[Documentation >>](./docs/index.md)
+A GitHub Action that packages and pushes Helm charts to GCP Artifact Registry. It simplifies the CI/CD workflow by automating the process of versioning, packaging, and pushing Helm charts.
+
+## Table of Content
+
+* [Code Style](./docs/CODESTYLE.md)
+* [Usage](./docs/USAGE.md)
