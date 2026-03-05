@@ -5,29 +5,29 @@ description: |
 author: martoc
 inputs:
   registry:
-    description: 'Registry to push the Helm chart to (default: docker.io) valid values: gcp, aws'
+    description: "Registry to push the Helm chart to (default: docker.io) valid values: gcp, aws"
     required: false
-    default: 'docker.io'
+    default: "docker.io"
   region:
-    description: 'Region to push the container to valid values: google cloud or aws regions'
+    description: "Region to push the container to valid values: google cloud or aws regions"
     required: false
-    default: ''
+    default: ""
   repository_name:
-    description: 'Repository Name'
+    description: "Repository Name"
     required: false
-    default: ''
+    default: ""
   aws_account_id:
-    description: 'AWS Account ID'
+    description: "AWS Account ID"
     required: false
-    default: ''
+    default: ""
   gcp_project_id:
-    description: 'Google Cloud Project ID'
+    description: "Google Cloud Project ID"
     required: false
-    default: ''
+    default: ""
 runs:
   using: "composite"
   steps:
-    - name: 'Set up Cloud SDK'
+    - name: "Set up Cloud SDK"
       uses: google-github-actions/setup-gcloud@v2
       with:
         version: 499.0.0
