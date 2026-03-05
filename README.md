@@ -2,24 +2,31 @@
 
 # action-helm-build
 
-A GitHub Action that packages and pushes Helm charts to GCP Artifact Registry. It simplifies the CI/CD workflow by automating the process of versioning, packaging, and pushing Helm charts.
+A GitHub Action that packages and pushes Helm charts to AWS ECR and GCP Artifact Registry. It simplifies the CI/CD workflow by automating the process of versioning, packaging, and pushing Helm charts.
 
 ## Features
 
+- Multi-registry support: AWS ECR, GCP Artifact Registry
 - Automatic chart versioning from `TAG_VERSION`
 - Helm chart packaging using `helm package`
-- OCI registry push to GCP Artifact Registry
-- Workload Identity Federation support
+- OCI registry push
+- Workload Identity Federation support (GCP)
+- IAM role assumption support (AWS)
 
 ## Quick Start
 
 ```yaml
-- uses: google-github-actions/auth@v2
+- name: Build & Push Helm Chart (AWS)
+  uses: martoc/action-helm-build@v0
   with:
-    workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-    service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+    registry: aws
+    region: us-east-2
+    repository_name: helm-charts
+    aws_account_id: "123456789012"
+```
 
-- name: Build & Push Helm Chart
+```yaml
+- name: Build & Push Helm Chart (GCP)
   uses: martoc/action-helm-build@v0
   with:
     registry: gcp
@@ -37,9 +44,10 @@ A GitHub Action that packages and pushes Helm charts to GCP Artifact Registry. I
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `registry` | Registry to push to (`gcp`) | No | `docker.io` |
-| `region` | GCP region | No | `""` |
+| `registry` | Registry to push to (`gcp`, `aws`) | No | `docker.io` |
+| `region` | GCP or AWS region | No | `""` |
 | `repository_name` | Repository name | No | `""` |
+| `aws_account_id` | AWS Account ID | No | `""` |
 | `gcp_project_id` | Google Cloud Project ID | No | `""` |
 
 ## Environment Variables

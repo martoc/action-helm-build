@@ -5,29 +5,29 @@ description: |
 author: martoc
 inputs:
   registry:
-    description: 'Registry to push the container to (default: docker.io) valid values: gcp'
+    description: "Registry to push the Helm chart to (default: docker.io) valid values: gcp, aws"
     required: false
-    default: 'docker.io'
+    default: "docker.io"
   region:
-    description: 'Region to push the container to valid values: google cloud or aws regions'
+    description: "Region to push the container to valid values: google cloud or aws regions"
     required: false
-    default: ''
+    default: ""
   repository_name:
-    description: 'Repository Name'
+    description: "Repository Name"
     required: false
-    default: ''
+    default: ""
   aws_account_id:
-    description: 'AWS Account ID'
+    description: "AWS Account ID"
     required: false
-    default: ''
+    default: ""
   gcp_project_id:
-    description: 'Google Cloud Project ID'
+    description: "Google Cloud Project ID"
     required: false
-    default: ''
+    default: ""
 runs:
   using: "composite"
   steps:
-    - name: 'Set up Cloud SDK'
+    - name: "Set up Cloud SDK"
       uses: google-github-actions/setup-gcloud@v2
       with:
         version: 499.0.0
@@ -61,6 +61,10 @@ runs:
           GCP_PROJECT_ID="${{ inputs.gcp_project_id }}"
         fi
 
+        if [ -n "${{ inputs.aws_account_id }}" ]; then
+          ACCOUNT_ID="${{ inputs.aws_account_id }}"
+        fi
+
         if [ "${REGISTRY}" = "gcp" ]; then
           if [ -z "${REGION}" ]; then
             echo "REGION must be set when using 'gcp' registry"
@@ -75,9 +79,30 @@ runs:
             exit 1
           fi
           gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${REGION}-docker.pkg.dev
-          REGISTRY_URL="oci://${REGION}-docker.pkg.dev"
+          REGISTRY_URL="oci://${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${REPOSITORY_NAME}"
+        elif [ "${REGISTRY}" = "aws" ]; then
+          if [ -z "${REGION}" ]; then
+            echo "REGION must be set when using 'aws' registry"
+            exit 1
+          fi
+          if [ -z "${ACCOUNT_ID}" ]; then
+            echo "ACCOUNT_ID must be set when using 'aws' registry, use aws_account_id input or ACCOUNT_ID envar"
+            exit 1
+          fi
+          if ! echo "${ACCOUNT_ID}" | grep -qE '^[0-9]{12}$'; then
+            echo "ACCOUNT_ID must be a 12-digit AWS account ID, got: ${ACCOUNT_ID}"
+            exit 1
+          fi
+          if [ -z "${REPOSITORY_NAME}" ]; then
+            echo "REPOSITORY_NAME must be set when using 'aws' registry"
+            exit 1
+          fi
+          aws ecr get-login-password --region ${REGION} | helm registry login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
+          REGISTRY_URL="oci://${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPOSITORY_NAME}"
         else
-          echo "Only GCP registry is supported"
+          echo "Unknown registry: ${REGISTRY}. Valid values are:"
+          echo "  - gcp"
+          echo "  - aws"
           exit 1
         fi
-        helm push ${NAME}-${TAG_VERSION}.tgz ${REGISTRY_URL}/${GCP_PROJECT_ID}/${REPOSITORY_NAME}
+        helm push ${NAME}-${TAG_VERSION}.tgz ${REGISTRY_URL}
