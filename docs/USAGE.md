@@ -2,7 +2,7 @@
 
 ## Overview
 
-This GitHub Action is designed to package and push Helm charts to Docker Hub, AWS Elastic Container Registry (ECR) and Google Cloud Artifact Registry.
+This GitHub Action is designed to package and push Helm charts to Docker Hub, AWS Elastic Container Registry (ECR), Google Cloud Artifact Registry and the GitHub Container Registry (ghcr.io).
 It simplifies the CI/CD workflow by automating the process of versioning, packaging,
 and pushing Helm charts.
 
@@ -26,19 +26,26 @@ Before using this action, ensure that you have the following secrets configured 
 * **GCP_WORKLOAD_IDENTITY_PROVIDER:** Workload identity provider for GCP authentication.
 * **GCP_SERVICE_ACCOUNT:** The email of the service account to use for GCP authentication.
 
+### GitHub Container Registry
+
+No secret. The action logs in to `ghcr.io` as `GITHUB_ACTOR` with the workflow's `GITHUB_TOKEN`,
+so the job needs `permissions: packages: write`. Pass `github_token` only to push with another
+token.
+
 ## Inputs
 
 ### Action Inputs
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `registry` | Registry to push the Helm chart to. Valid values: `docker.io`, `gcp`, `aws` | No | `docker.io` |
+| `registry` | Registry to push the Helm chart to. Valid values: `docker.io`, `gcp`, `aws`, `github` | No | `docker.io` |
 | `region` | Region to push the Helm chart to. Valid for GCP or AWS regions | No | `""` |
-| `repository_name` | Artifact Registry repository, ECR namespace or Docker Hub namespace (defaults to `DOCKER_USERNAME` on Docker Hub) | No | `""` |
+| `repository_name` | Artifact Registry repository, ECR namespace, Docker Hub namespace (defaults to `DOCKER_USERNAME`) or `ghcr.io` namespace (defaults to the repository owner) | No | `""` |
 | `aws_account_id` | AWS Account ID | No | `""` |
 | `gcp_project_id` | Google Cloud Project ID | No | `""` |
 | `chart_path` | Directory holding `Chart.yaml`, relative to the repository root | No | `.` |
 | `app_version` | Sets `appVersion` in `Chart.yaml` when not empty | No | `""` |
+| `github_token` | Token that pushes to `ghcr.io` with `registry: github` | No | the workflow's `GITHUB_TOKEN` |
 
 ### Environment Variables
 
@@ -148,6 +155,15 @@ jobs:
 * `repository_name` input is required
 * `gcp_project_id` input is required
 * GCP authentication must be configured (e.g., using `google-github-actions/auth`)
+
+### GitHub Container Registry
+
+* `registry` input must be set to `github`
+* `repository_name` is the namespace and defaults to the repository owner; the chart is pushed to
+  `oci://ghcr.io/<repository_name>/<chart name>:<TAG_VERSION>`, lower-cased because GHCR rejects
+  capitals
+* A namespace such as `my-org/charts` keeps charts apart from images of the same name
+* The job needs `permissions: packages: write`; `region` is not used
 
 ## Chart Versioning
 
