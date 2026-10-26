@@ -1,11 +1,12 @@
 ---
 name: "Deploys a Helm Chart"
 description: |
-  This action deploys a Helm chart to a registry.
+  This action packages a Helm chart at TAG_VERSION and pushes it to an OCI registry
+  (Docker Hub, Google Artifact Registry or AWS ECR).
 author: martoc
 inputs:
   registry:
-    description: "Registry to push the Helm chart to (default: docker.io) valid values: gcp, aws"
+    description: "Registry to push the Helm chart to (default: docker.io) valid values: docker.io, gcp, aws"
     required: false
     default: "docker.io"
   region:
@@ -13,7 +14,7 @@ inputs:
     required: false
     default: ""
   repository_name:
-    description: "Repository Name"
+    description: "Repository Name: Artifact Registry repository, ECR namespace or Docker Hub namespace (default: DOCKER_USERNAME)"
     required: false
     default: ""
   aws_account_id:
@@ -22,6 +23,14 @@ inputs:
     default: ""
   gcp_project_id:
     description: "Google Cloud Project ID"
+    required: false
+    default: ""
+  chart_path:
+    description: "Directory that holds Chart.yaml, relative to the repository root"
+    required: false
+    default: "."
+  app_version:
+    description: "Sets appVersion in Chart.yaml when not empty, e.g. the TAG_VERSION of the images the chart installs"
     required: false
     default: ""
 runs:
@@ -34,16 +43,26 @@ runs:
       if: ${{ inputs.registry == 'gcp' }}
     - name: Setup Helm Chart
       shell: bash
+      env:
+        CHART_PATH: ${{ inputs.chart_path }}
+        APP_VERSION: ${{ inputs.app_version }}
       run: |
-        yq e ".version = \"$TAG_VERSION\"" -i Chart.yaml
-    - name: Packge Helm chart
+        yq e ".version = \"$TAG_VERSION\"" -i "${CHART_PATH}/Chart.yaml"
+        if [ -n "${APP_VERSION}" ]; then
+          yq e ".appVersion = \"$APP_VERSION\"" -i "${CHART_PATH}/Chart.yaml"
+        fi
+    - name: Package Helm chart
       shell: bash
+      env:
+        CHART_PATH: ${{ inputs.chart_path }}
       run: |
-        helm package .
+        helm package "${CHART_PATH}"
     - name: Publish Helm chart
       shell: bash
+      env:
+        CHART_PATH: ${{ inputs.chart_path }}
       run: |
-        NAME=$(cat Chart.yaml | yq .name)
+        NAME=$(yq .name "${CHART_PATH}/Chart.yaml")
 
         if [ -n "${{ inputs.registry }}" ]; then
           REGISTRY="${{ inputs.registry }}"
@@ -65,7 +84,17 @@ runs:
           ACCOUNT_ID="${{ inputs.aws_account_id }}"
         fi
 
-        if [ "${REGISTRY}" = "gcp" ]; then
+        if [ "${REGISTRY}" = "docker.io" ]; then
+          if [ -z "${DOCKER_USERNAME}" ] || [ -z "${DOCKER_PASSWORD}" ]; then
+            echo "DOCKER_USERNAME and DOCKER_PASSWORD must be set when using docker.io registry"
+            exit 1
+          fi
+          if [ -z "${REPOSITORY_NAME}" ]; then
+            REPOSITORY_NAME="${DOCKER_USERNAME}"
+          fi
+          echo "${DOCKER_PASSWORD}" | helm registry login registry-1.docker.io --username "${DOCKER_USERNAME}" --password-stdin
+          REGISTRY_URL="oci://registry-1.docker.io/${REPOSITORY_NAME}"
+        elif [ "${REGISTRY}" = "gcp" ]; then
           if [ -z "${REGION}" ]; then
             echo "REGION must be set when using 'gcp' registry"
             exit 1
@@ -101,6 +130,7 @@ runs:
           REGISTRY_URL="oci://${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPOSITORY_NAME}"
         else
           echo "Unknown registry: ${REGISTRY}. Valid values are:"
+          echo "  - docker.io"
           echo "  - gcp"
           echo "  - aws"
           exit 1

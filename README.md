@@ -2,11 +2,12 @@
 
 # action-helm-build
 
-A GitHub Action that packages and pushes Helm charts to AWS ECR and GCP Artifact Registry. It simplifies the CI/CD workflow by automating the process of versioning, packaging, and pushing Helm charts.
+A GitHub Action that packages and pushes Helm charts to Docker Hub, AWS ECR and GCP Artifact Registry. It simplifies the CI/CD workflow by automating the process of versioning, packaging, and pushing Helm charts.
 
 ## Features
 
-- Multi-registry support: AWS ECR, GCP Artifact Registry
+- Multi-registry support: Docker Hub, AWS ECR, GCP Artifact Registry
+- Charts in any directory (`chart_path`) and an optional `appVersion`
 - Automatic chart versioning from `TAG_VERSION`
 - Helm chart packaging using `helm package`
 - OCI registry push
@@ -14,6 +15,18 @@ A GitHub Action that packages and pushes Helm charts to AWS ECR and GCP Artifact
 - IAM role assumption support (AWS)
 
 ## Quick Start
+
+```yaml
+- name: Build & Push Helm Chart (Docker Hub)
+  uses: martoc/action-helm-build@v0
+  with:
+    registry: docker.io
+    chart_path: charts/my-chart
+    app_version: ${{ env.TAG_VERSION }}
+  env:
+    DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+    DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+```
 
 ```yaml
 - name: Build & Push Helm Chart (AWS)
@@ -44,17 +57,20 @@ A GitHub Action that packages and pushes Helm charts to AWS ECR and GCP Artifact
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `registry` | Registry to push to (`gcp`, `aws`) | No | `docker.io` |
+| `registry` | Registry to push to (`docker.io`, `gcp`, `aws`) | No | `docker.io` |
 | `region` | GCP or AWS region | No | `""` |
-| `repository_name` | Repository name | No | `""` |
+| `repository_name` | Artifact Registry repository, ECR namespace or Docker Hub namespace (defaults to `DOCKER_USERNAME` on Docker Hub) | No | `""` |
 | `aws_account_id` | AWS Account ID | No | `""` |
 | `gcp_project_id` | Google Cloud Project ID | No | `""` |
+| `chart_path` | Directory holding `Chart.yaml` | No | `.` |
+| `app_version` | Sets `appVersion` when not empty | No | `""` |
 
 ## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
 | `TAG_VERSION` | Version tag for the Helm chart (required) |
+| `DOCKER_USERNAME` / `DOCKER_PASSWORD` | Docker Hub credentials (required for `docker.io`) |
 
 ## Licence
 

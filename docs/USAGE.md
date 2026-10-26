@@ -2,7 +2,7 @@
 
 ## Overview
 
-This GitHub Action is designed to package and push Helm charts to AWS Elastic Container Registry (ECR) and Google Cloud Artifact Registry.
+This GitHub Action is designed to package and push Helm charts to Docker Hub, AWS Elastic Container Registry (ECR) and Google Cloud Artifact Registry.
 It simplifies the CI/CD workflow by automating the process of versioning, packaging,
 and pushing Helm charts.
 
@@ -11,6 +11,11 @@ and pushing Helm charts.
 Secrets Configuration
 
 Before using this action, ensure that you have the following secrets configured in your GitHub repository:
+
+### Docker Hub
+
+* **DOCKER_USERNAME:** Docker Hub user, also the default namespace.
+* **DOCKER_PASSWORD:** Docker Hub password or access token.
 
 ### AWS ECR
 
@@ -27,11 +32,13 @@ Before using this action, ensure that you have the following secrets configured 
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `registry` | Registry to push the Helm chart to. Valid values: `gcp`, `aws` | No | `docker.io` |
+| `registry` | Registry to push the Helm chart to. Valid values: `docker.io`, `gcp`, `aws` | No | `docker.io` |
 | `region` | Region to push the Helm chart to. Valid for GCP or AWS regions | No | `""` |
-| `repository_name` | Repository name | No | `""` |
+| `repository_name` | Artifact Registry repository, ECR namespace or Docker Hub namespace (defaults to `DOCKER_USERNAME` on Docker Hub) | No | `""` |
 | `aws_account_id` | AWS Account ID | No | `""` |
 | `gcp_project_id` | Google Cloud Project ID | No | `""` |
+| `chart_path` | Directory holding `Chart.yaml`, relative to the repository root | No | `.` |
+| `app_version` | Sets `appVersion` in `Chart.yaml` when not empty | No | `""` |
 
 ### Environment Variables
 
@@ -40,6 +47,8 @@ The following environment variables can be used to customize the build:
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `TAG_VERSION` | The version tag for the Helm chart | Yes |
+| `DOCKER_USERNAME` | Docker Hub user and default namespace | For `docker.io` |
+| `DOCKER_PASSWORD` | Docker Hub password or access token | For `docker.io` |
 
 ## Example
 
@@ -115,6 +124,15 @@ jobs:
 
 ## Registry-Specific Requirements
 
+### Docker Hub
+
+* `registry` input set to `docker.io` (the default)
+* `DOCKER_USERNAME` and `DOCKER_PASSWORD` environment variables are required
+* `repository_name` is the namespace and defaults to `DOCKER_USERNAME`; the chart is pushed to
+  `oci://registry-1.docker.io/<namespace>/<chart name>:<TAG_VERSION>`
+* Docker Hub repositories are not nested, so give the chart a name that no image in the same
+  namespace uses (for example `my-operator-chart` beside the `my-operator` image)
+
 ### AWS ECR
 
 * `registry` input must be set to `aws`
@@ -134,3 +152,7 @@ jobs:
 ## Chart Versioning
 
 The action automatically updates the `version` field in `Chart.yaml` with the value from the `TAG_VERSION` environment variable before packaging the chart.
+
+When `app_version` is set, `appVersion` is updated as well, so a chart can install the images
+built in the same run. `chart_path` points at a chart outside the repository root, for example
+`charts/my-chart`.
