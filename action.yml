@@ -2,11 +2,11 @@
 name: "Deploys a Helm Chart"
 description: |
   This action packages a Helm chart at TAG_VERSION and pushes it to an OCI registry
-  (Docker Hub, Google Artifact Registry or AWS ECR).
+  (Docker Hub, Google Artifact Registry, AWS ECR or the GitHub Container Registry).
 author: martoc
 inputs:
   registry:
-    description: "Registry to push the Helm chart to (default: docker.io) valid values: docker.io, gcp, aws"
+    description: "Registry to push the Helm chart to (default: docker.io) valid values: docker.io, gcp, aws, github"
     required: false
     default: "docker.io"
   region:
@@ -14,7 +14,7 @@ inputs:
     required: false
     default: ""
   repository_name:
-    description: "Repository Name: Artifact Registry repository, ECR namespace or Docker Hub namespace (default: DOCKER_USERNAME)"
+    description: "Repository Name: Artifact Registry repository, ECR namespace, Docker Hub namespace (default: DOCKER_USERNAME) or ghcr.io namespace (default: the repository owner)"
     required: false
     default: ""
   aws_account_id:
@@ -33,6 +33,13 @@ inputs:
     description: "Sets appVersion in Chart.yaml when not empty, e.g. the TAG_VERSION of the images the chart installs"
     required: false
     default: ""
+  github_token:
+    description: >-
+      Token that pushes to the GitHub Container Registry (ghcr.io) with
+      registry 'github'. Defaults to the workflow's GITHUB_TOKEN, which needs
+      'packages: write' in the calling job.
+    required: false
+    default: ${{ github.token }}
 runs:
   using: "composite"
   steps:
@@ -61,6 +68,7 @@ runs:
       shell: bash
       env:
         CHART_PATH: ${{ inputs.chart_path }}
+        GHCR_TOKEN: ${{ inputs.github_token }}
       run: |
         NAME=$(yq .name "${CHART_PATH}/Chart.yaml")
 
@@ -128,11 +136,23 @@ runs:
           fi
           aws ecr get-login-password --region ${REGION} | helm registry login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
           REGISTRY_URL="oci://${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPOSITORY_NAME}"
+        elif [ "${REGISTRY}" = "github" ]; then
+          if [ -z "${REPOSITORY_NAME}" ]; then
+            REPOSITORY_NAME="${{ github.repository_owner }}"
+          fi
+          if [ -z "${GHCR_TOKEN}" ]; then
+            echo "github_token must be set when using 'github' registry"
+            exit 1
+          fi
+          echo "${GHCR_TOKEN}" | helm registry login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+          # GHCR accepts only lower case repository paths.
+          REGISTRY_URL="oci://ghcr.io/${REPOSITORY_NAME,,}"
         else
           echo "Unknown registry: ${REGISTRY}. Valid values are:"
           echo "  - docker.io"
           echo "  - gcp"
           echo "  - aws"
+          echo "  - github"
           exit 1
         fi
         helm push ${NAME}-${TAG_VERSION}.tgz ${REGISTRY_URL}

@@ -2,11 +2,11 @@
 
 # action-helm-build
 
-A GitHub Action that packages and pushes Helm charts to Docker Hub, AWS ECR and GCP Artifact Registry. It simplifies the CI/CD workflow by automating the process of versioning, packaging, and pushing Helm charts.
+A GitHub Action that packages and pushes Helm charts to Docker Hub, AWS ECR, GCP Artifact Registry and the GitHub Container Registry (ghcr.io). It simplifies the CI/CD workflow by automating the process of versioning, packaging, and pushing Helm charts.
 
 ## Features
 
-- Multi-registry support: Docker Hub, AWS ECR, GCP Artifact Registry
+- Multi-registry support: Docker Hub, AWS ECR, GCP Artifact Registry, GitHub Container Registry
 - Charts in any directory (`chart_path`) and an optional `appVersion`
 - Automatic chart versioning from `TAG_VERSION`
 - Helm chart packaging using `helm package`
@@ -48,6 +48,16 @@ A GitHub Action that packages and pushes Helm charts to Docker Hub, AWS ECR and 
     gcp_project_id: my-project
 ```
 
+```yaml
+# oci://ghcr.io/<owner>/charts/<chart>; the job needs permissions: packages: write
+- name: Build & Push Helm Chart (GitHub)
+  uses: martoc/action-helm-build@v0
+  with:
+    registry: github
+    repository_name: ${{ github.repository_owner }}/charts
+    chart_path: charts/my-chart
+```
+
 ## Documentation
 
 - [Usage Guide](./docs/USAGE.md) - Detailed usage instructions and examples
@@ -57,13 +67,14 @@ A GitHub Action that packages and pushes Helm charts to Docker Hub, AWS ECR and 
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `registry` | Registry to push to (`docker.io`, `gcp`, `aws`) | No | `docker.io` |
+| `registry` | Registry to push to (`docker.io`, `gcp`, `aws`, `github`) | No | `docker.io` |
 | `region` | GCP or AWS region | No | `""` |
-| `repository_name` | Artifact Registry repository, ECR namespace or Docker Hub namespace (defaults to `DOCKER_USERNAME` on Docker Hub) | No | `""` |
+| `repository_name` | Artifact Registry repository, ECR namespace, Docker Hub namespace (defaults to `DOCKER_USERNAME`) or `ghcr.io` namespace (defaults to the repository owner) | No | `""` |
 | `aws_account_id` | AWS Account ID | No | `""` |
 | `gcp_project_id` | Google Cloud Project ID | No | `""` |
 | `chart_path` | Directory holding `Chart.yaml` | No | `.` |
 | `app_version` | Sets `appVersion` when not empty | No | `""` |
+| `github_token` | Token that pushes to `ghcr.io` (`github` registry) | No | the workflow's `GITHUB_TOKEN` |
 
 ## Environment Variables
 
