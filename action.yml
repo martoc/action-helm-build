@@ -40,6 +40,15 @@ inputs:
       'packages: write' in the calling job.
     required: false
     default: ${{ github.token }}
+  sign:
+    description: >-
+      Sign the pushed chart with cosign, keyless, with the job's GitHub OIDC
+      identity, so users can verify it came from this repository's workflow.
+      The job needs 'id-token: write'. The signature is recorded in the public
+      Sigstore transparency log, which names the repository and workflow, so
+      enable it only for public repositories.
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -48,6 +57,9 @@ runs:
       with:
         version: 499.0.0
       if: ${{ inputs.registry == 'gcp' }}
+    - name: "Install cosign"
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6  # v4.1.2
+      if: ${{ inputs.sign == 'true' }}
     - name: Setup Helm Chart
       shell: bash
       env:
@@ -155,4 +167,16 @@ runs:
           echo "  - github"
           exit 1
         fi
-        helm push ${NAME}-${TAG_VERSION}.tgz ${REGISTRY_URL}
+        PUSH_OUTPUT=$(helm push ${NAME}-${TAG_VERSION}.tgz ${REGISTRY_URL} 2>&1)
+        echo "${PUSH_OUTPUT}"
+        if [ "${{ inputs.sign }}" = "true" ]; then
+          # Keyless: the certificate names this workflow run through GitHub OIDC. The digest is
+          # signed, not the tag; cosign reads the credentials helm registry login stored.
+          PUSHED=$(echo "${PUSH_OUTPUT}" | sed -n 's/^Pushed: //p')
+          DIGEST=$(echo "${PUSH_OUTPUT}" | sed -n 's/^Digest: //p')
+          if [ -z "${PUSHED}" ] || [ -z "${DIGEST}" ]; then
+            echo "Could not read the pushed reference and digest from helm push"
+            exit 1
+          fi
+          DOCKER_CONFIG="$(dirname "$(helm env HELM_REGISTRY_CONFIG)")" cosign sign --yes "${PUSHED%:*}@${DIGEST}"
+        fi

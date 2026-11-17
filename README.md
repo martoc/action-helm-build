@@ -75,6 +75,7 @@ A GitHub Action that packages and pushes Helm charts to Docker Hub, AWS ECR, GCP
 | `chart_path` | Directory holding `Chart.yaml` | No | `.` |
 | `app_version` | Sets `appVersion` when not empty | No | `""` |
 | `github_token` | Token that pushes to `ghcr.io` (`github` registry) | No | the workflow's `GITHUB_TOKEN` |
+| `sign` | `true` signs the pushed chart with cosign, keyless (needs `id-token: write`; public repositories) | No | `"false"` |
 
 ## Environment Variables
 
