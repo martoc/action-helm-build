@@ -46,6 +46,7 @@ token.
 | `chart_path` | Directory holding `Chart.yaml`, relative to the repository root | No | `.` |
 | `app_version` | Sets `appVersion` in `Chart.yaml` when not empty | No | `""` |
 | `github_token` | Token that pushes to `ghcr.io` with `registry: github` | No | the workflow's `GITHUB_TOKEN` |
+| `sign` | `true` signs the pushed chart's digest with cosign, keyless, with the job's GitHub OIDC identity. The job needs `id-token: write`. The signature goes to the public Sigstore transparency log, which names the repository and workflow, so use it for public repositories. Verify with `cosign verify <registry>/<path>/<chart>@<digest> --certificate-identity-regexp '^https://github.com/<owner>/<repo>/' --certificate-oidc-issuer https://token.actions.githubusercontent.com` | No | `"false"` |
 
 ### Environment Variables
 
